@@ -1,0 +1,32 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+assets/_tmp_*.png
+build/
+dist/
+
+# Local working material, merchant documents, and test copies
+/output/
+/tmp/
+/Install-testcopy.bat
+
+# Credentials and local configuration
+secret/
+secrets/
+.env*
+*.env
+*.env.*
+*.pem
+*.key
+*.pfx
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+Thumbs.db
+Desktop.ini
+.DS_Store
