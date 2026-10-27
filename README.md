@@ -22,13 +22,13 @@ have passed locally. Manual Windows installation, upgrade, uninstall, login
 autostart, and live Spotify testing have not been completed. The first release
 is intended for early testing, not a claim of full Windows validation.
 
-Use only assets from [official GitHub Releases](https://github.com/ddmmyy94/GlanceLyric/releases).
-If no assets appear there yet, publication is still in progress. GlanceLyric
+The [v1.0.0 pre-release](https://github.com/ddmmyy94/GlanceLyric/releases/tag/v1.0.0)
+is available with the installer, portable ZIP, and SHA-256 checksums. GlanceLyric
 remains free to download and use, with no donation required.
 
 ### Windows installer
 
-In the official release, choose **`GlanceLyric-Setup-1.0.0-x64.exe`** and run it.
+Download [**`GlanceLyric-Setup-1.0.0-x64.exe`**](https://github.com/ddmmyy94/GlanceLyric/releases/download/v1.0.0/GlanceLyric-Setup-1.0.0-x64.exe) and run it.
 The installer installs the app for your Windows account, adds a Start Menu
 shortcut, and offers optional desktop and autostart shortcuts/settings.
 You do not need to install Python or run the installer as Administrator.
@@ -38,9 +38,12 @@ the Spotify desktop app; an internet connection to fetch uncached lyrics.
 
 ### Portable ZIP
 
-Choose **`GlanceLyric-v1.0-windows-x64.zip`** from the same release, extract it,
+Download [**`GlanceLyric-v1.0-windows-x64.zip`**](https://github.com/ddmmyy94/GlanceLyric/releases/download/v1.0.0/GlanceLyric-v1.0-windows-x64.zip), extract it,
 and run `GlanceLyric.exe` inside the `GlanceLyric` folder. Keep `_internal` beside
 the executable. The ZIP includes Python and Qt.
+
+Download [SHA256SUMS.txt](https://github.com/ddmmyy94/GlanceLyric/releases/download/v1.0.0/SHA256SUMS.txt)
+and compare the package's SHA-256 before running it. Both executables are unsigned.
 
 ### WinGet (planned)
 
@@ -51,7 +54,7 @@ After the package submission is accepted, you will be able to install it with:
 winget install --id ddmmyy94.GlanceLyric --exact --source winget
 ```
 
-Until then, use the official installer or portable ZIP when available in Releases.
+Until then, use the installer or portable ZIP above.
 
 ## Features
 
@@ -138,7 +141,7 @@ if you want to remove settings and cached lyrics too.
 
 The current build configuration produces unsigned executables. Windows may
 show a SmartScreen warning. Download releases from this project's GitHub
-repository and check the release's SHA-256 hashes if supplied.
+repository and check the release's SHA-256 hashes in `SHA256SUMS.txt`.
 
 ## Support GlanceLyric
 
