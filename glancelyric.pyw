@@ -35,7 +35,7 @@ def check(report_path):
         app.setQuitOnLastWindowClosed(False)
         dialog = SettingsDialog(DEFAULTS)
         widget = LyricWidget(start_monitor=False, config=DEFAULTS)
-        assert dialog.windowTitle() == 'GlanceLyric v1.0'
+        assert dialog.windowTitle() == APP_TITLE
         assert not dialog.windowIcon().pixmap(16, 16).isNull()
         assert parse_lrc('[00:01]GlanceLyric') == [(1.0, 'GlanceLyric')]
         assert len(widget.labels) == 2

@@ -9,17 +9,18 @@ import logging
 import queue
 import sys
 
-from PySide6.QtCore import Qt, QTimer, QRectF, QLockFile, QEvent
-from PySide6.QtGui import (QColor, QFont, QPainter, QPainterPath, QRegion, QCursor,
-                           QShortcut, QKeySequence, QIcon, QPixmap)
+from PySide6.QtCore import Qt, QTimer, QRectF, QLockFile, QEvent, QUrl
+from PySide6.QtGui import (QColor, QFont, QFontMetrics, QPainter, QPainterPath, QRegion, QCursor,
+                           QShortcut, QKeySequence, QIcon, QPixmap, QDesktopServices)
 from PySide6.QtWidgets import (QApplication, QWidget, QLabel, QVBoxLayout, QToolButton,
                                QMenu, QToolTip, QMessageBox, QSizePolicy)
 
-from glance_backend import (APP_NAME, APP_TITLE, DATA_DIR, PlaybackClock, SpotifyMonitor,
+from glance_backend import (APP_NAME, APP_TITLE, APP_VERSION, DATA_DIR, PlaybackClock, SpotifyMonitor,
                             LyricsFetcher)
 from glance_settings import (SettingsDialog, load_settings, save_settings, normalize,
                              palette, stylesheet)
 from glance_win32 import app_icon, taskbar_geometry, keep_on_top, apply_acrylic, show_spotify
+from glance_updates import UpdateChecker
 
 
 class LyricWidget(QWidget):
@@ -35,6 +36,8 @@ class LyricWidget(QWidget):
         self.offset = self.config['offset']
         self.clock = PlaybackClock()
         self.inbox = queue.Queue()
+        self.updater = UpdateChecker(self.inbox)
+        self.update_dialog = None
         self.monitor = SpotifyMonitor(self.inbox)
         self.fetcher = LyricsFetcher(self.inbox)
         self.key = None
@@ -89,6 +92,7 @@ class LyricWidget(QWidget):
         self.menu.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.menu.addAction('Settings', self.open_settings)
         self.menu.addAction('Show Spotify', self.open_spotify)
+        self.update_action = self.menu.addAction('Check for updates…', lambda: self.check_updates(manual=True))
         self.menu.addSeparator()
         self.menu.addAction('About GlanceLyric', self.open_about)
         self.menu.addSeparator()
@@ -100,11 +104,16 @@ class LyricWidget(QWidget):
         self.dock_timer = QTimer(self)
         self.dock_timer.setInterval(1000)
         self.dock_timer.timeout.connect(self.dock)
+        self.update_timer = QTimer(self)
+        self.update_timer.setInterval(60 * 60 * 1000)
+        self.update_timer.timeout.connect(self.check_updates)
         self.apply_settings()
         if start_monitor:
             self.monitor.start()
             self.timer.start()
             self.dock_timer.start()
+            self.update_timer.start()
+            QTimer.singleShot(5000, self.check_updates)
 
     def apply_settings(self):
         self.offset = self.config['offset']
@@ -119,7 +128,7 @@ class LyricWidget(QWidget):
                                 f"QToolButton:hover, QToolButton:focus {{ background: {p['hover']}; }}")
         self.menu.setStyleSheet(stylesheet(self.config['theme']))
         actions = [action for action in self.menu.actions() if not action.isSeparator()]
-        for action, glyph in zip(actions, ('\uE713', '\uE768', '\uEB51', '\uE7E8')):
+        for action, glyph in zip(actions, ('\uE713', '\uE768', '\uE895', '\uEB51', '\uE7E8')):
             pixmap = QPixmap(20, 20)
             pixmap.fill(Qt.GlobalColor.transparent)
             painter = QPainter(pixmap)
@@ -128,7 +137,6 @@ class LyricWidget(QWidget):
             painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, glyph)
             painter.end()
             action.setIcon(QIcon(pixmap))
-        self.row_height = max(18, self.labels[0].fontMetrics().height())
         self.dock()
         self.render_text()
         if self.isVisible():
@@ -136,19 +144,30 @@ class LyricWidget(QWidget):
         self.update()
 
     def dock(self):
+        # Start from the saved preference so returning to a taller bar restores it.
+        font = QFont(self.config['font_family'], self.config['font_size'])
+        metrics = QFontMetrics(font, self.labels[0])
+        height = max(18, metrics.height()) * 2 + 6
+        available = max(1, (taskbar_geometry(260, height).height() - 6) // 2)
+        while metrics.height() > available and font.pointSizeF() > 1:
+            font.setPointSizeF(max(1, font.pointSizeF() - 0.5))
+            metrics = QFontMetrics(font, self.labels[0])
         width = 260
         for label, text in zip(self.labels, self.full_text):
+            if label.font() != font:
+                label.setFont(font)
             metrics = label.fontMetrics()
             single_line = ' '.join(text.split())
             width = max(width, metrics.horizontalAdvance(single_line) + 18,
                         metrics.boundingRect(single_line).width() + 18)
-        # Grow to the left of the same tray anchor; retain the configured font size.
-        geometry = taskbar_geometry(width, self.row_height * 2 + 6)
+        # Measure width after fitting, keeping the same tray/NetSpeedTray anchor.
+        geometry = taskbar_geometry(width, height)
         self.setFixedSize(geometry.size())
         if self.geometry() != geometry:
             self.setGeometry(geometry)
         self.position_controls()
-        if self.isVisible() and not self.menu.isVisible() and not (self.settings and self.settings.isVisible()):
+        if self.isVisible() and not self.menu.isVisible() and not (self.settings and self.settings.isVisible()) \
+                and not (self.update_dialog and self.update_dialog.isVisible()):
             keep_on_top(int(self.winId()))
 
     def refresh_acrylic(self):
@@ -226,6 +245,9 @@ class LyricWidget(QWidget):
         super().leaveEvent(event)
 
     def eventFilter(self, watched, event):
+        if watched is self.update_dialog and event.type() in (QEvent.Type.Resize, QEvent.Type.Show):
+            # Expanding QMessageBox details otherwise grows below the taskbar parent.
+            QTimer.singleShot(0, self.position_update_dialog)
         if watched is self.controls:
             if event.type() == QEvent.Type.Enter:
                 self.hover_timer.stop()
@@ -270,6 +292,63 @@ class LyricWidget(QWidget):
                           f'{APP_TITLE}\n\nLirik Spotify dua baris di taskbar Windows.\n'
                           'Lirik dari LRCLIB')
 
+    def check_updates(self, manual=False):
+        if manual and self.update_dialog and self.update_dialog.isVisible():
+            self.update_dialog.raise_()
+            self.update_dialog.activateWindow()
+            return
+        if (manual or self.config['check_updates']) and self.updater.ensure(manual=manual):
+            self.update_action.setEnabled(False)
+
+    def show_update_result(self, message):
+        self.update_action.setEnabled(True)
+        if not message['manual'] and not self.config['check_updates']:
+            return
+        release = message.get('release')
+        if not release and not message['manual']:
+            return  # Offline/no-update background checks never interrupt lyrics.
+        if self.update_dialog:
+            self.update_dialog.close()
+            self.update_dialog.deleteLater()
+        box = QMessageBox(self)
+        self.update_dialog = box
+        box.installEventFilter(self)
+        box.setWindowTitle(APP_TITLE + ' — Pembaruan')
+        box.setWindowIcon(app_icon())
+        box.setStyleSheet(stylesheet(self.config['theme']))
+        box.setTextFormat(Qt.TextFormat.PlainText)
+        if release:
+            box.setText(f"GlanceLyric v{release['version']} tersedia")
+            channel = 'Versi uji awal (pre-release).' if release['prerelease'] else 'Rilis stabil.'
+            notes = release['notes']
+            preview = notes[:800] + ('…' if len(notes) > 800 else '')
+            box.setInformativeText(f'Versi terpasang: {APP_VERSION}. {channel}\n\n{preview}\n\n'
+                                   'Unduh dan jalankan installer sendiri; aplikasi tidak diganti otomatis.')
+            box.setDetailedText(notes)
+            download = box.addButton('Buka halaman unduhan', QMessageBox.ButtonRole.AcceptRole)
+            later = box.addButton('Nanti', QMessageBox.ButtonRole.RejectRole)
+            box.setDefaultButton(later)
+            box.buttonClicked.connect(lambda button: QDesktopServices.openUrl(QUrl(release['url']))
+                                      if button is download else None)
+            self.updater.mark_notified(release['version'])
+        else:
+            box.setText('Pembaruan belum dapat diperiksa.' if message.get('error') else
+                        'Anda sudah menggunakan versi terbaru yang tersedia.')
+            box.setInformativeText('Periksa koneksi internet dan coba lagi melalui Check for updates.'
+                                   if message.get('error') else f'Versi terpasang: {APP_VERSION}.')
+            box.setStandardButtons(QMessageBox.StandardButton.Ok)
+        box.setWindowModality(Qt.WindowModality.NonModal)
+        box.show()
+
+    def position_update_dialog(self):
+        box = self.update_dialog
+        if not box or not box.isVisible():
+            return
+        frame, area = box.frameGeometry(), box.screen().availableGeometry()
+        x = max(area.left(), min(frame.left(), area.right() - frame.width() + 1))
+        y = max(area.top(), min(frame.top(), area.bottom() - frame.height() + 1))
+        box.move(box.x() + x - frame.left(), box.y() + y - frame.top())
+
     def nudge_offset(self, delta):
         self.offset = round(max(-60, min(60, self.offset + delta)), 1)
         self.config['offset'] = self.offset
@@ -290,6 +369,9 @@ class LyricWidget(QWidget):
                 message = self.inbox.get_nowait()
             except queue.Empty:
                 break
+            if 'update_check' in message:
+                self.show_update_result(message)
+                continue
             if 'lyrics_key' in message:
                 if message['lyrics_key'] != self.key:
                     continue
@@ -334,9 +416,12 @@ class LyricWidget(QWidget):
         self.controls.hide()
         self.timer.stop()
         self.dock_timer.stop()
+        self.update_timer.stop()
         self.monitor.stop_event.set()
         if self.settings:
             self.settings.close()
+        if self.update_dialog:
+            self.update_dialog.close()
         super().closeEvent(event)
         QApplication.instance().quit()
 

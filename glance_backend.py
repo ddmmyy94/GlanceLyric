@@ -12,7 +12,8 @@ from pathlib import Path
 import requests
 
 APP_NAME = 'GlanceLyric'
-APP_VERSION = '1.0'
+APP_VERSION = '1.1.0'
+APP_PRERELEASE = True  # Early-testing builds also check published pre-releases.
 APP_TITLE = f'{APP_NAME} v{APP_VERSION}'
 ROOT_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = ROOT_DIR / 'assets'

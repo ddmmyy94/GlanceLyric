@@ -17,18 +17,18 @@ It reads Spotify's media session through Windows and fetches lyrics from
 
 ## Install
 
-**Early Windows testing, v1.0.0.** Automated checks and a portable runtime check
-have passed locally. Manual Windows installation, upgrade, uninstall, login
-autostart, and live Spotify testing have not been completed. The first release
-is intended for early testing, not a claim of full Windows validation.
+**Windows pre-release, v1.1.0.** The owner has confirmed Spotify lyrics and
+normal/small taskbar switching on their Windows PC. Automated layout, update,
+package, and portable runtime checks have passed. Installer upgrade, uninstall,
+login autostart, and testing on other PCs still need manual validation.
 
-The [v1.0.0 pre-release](https://github.com/ddmmyy94/GlanceLyric/releases/tag/v1.0.0)
+The [v1.1.0 pre-release](https://github.com/ddmmyy94/GlanceLyric/releases/tag/v1.1.0)
 is available with the installer, portable ZIP, and SHA-256 checksums. GlanceLyric
 remains free to download and use, with no donation required.
 
 ### Windows installer
 
-Download [**`GlanceLyric-Setup-1.0.0-x64.exe`**](https://github.com/ddmmyy94/GlanceLyric/releases/download/v1.0.0/GlanceLyric-Setup-1.0.0-x64.exe) and run it.
+Download [**`GlanceLyric-Setup-1.1.0-x64.exe`**](https://github.com/ddmmyy94/GlanceLyric/releases/download/v1.1.0/GlanceLyric-Setup-1.1.0-x64.exe) and run it.
 The installer installs the app for your Windows account, adds a Start Menu
 shortcut, and offers optional desktop and autostart shortcuts/settings.
 You do not need to install Python or run the installer as Administrator.
@@ -38,12 +38,23 @@ the Spotify desktop app; an internet connection to fetch uncached lyrics.
 
 ### Portable ZIP
 
-Download [**`GlanceLyric-v1.0-windows-x64.zip`**](https://github.com/ddmmyy94/GlanceLyric/releases/download/v1.0.0/GlanceLyric-v1.0-windows-x64.zip), extract it,
+Download [**`GlanceLyric-v1.1.0-windows-x64.zip`**](https://github.com/ddmmyy94/GlanceLyric/releases/download/v1.1.0/GlanceLyric-v1.1.0-windows-x64.zip), extract it,
 and run `GlanceLyric.exe` inside the `GlanceLyric` folder. Keep `_internal` beside
 the executable. The ZIP includes Python and Qt.
 
-Download [SHA256SUMS.txt](https://github.com/ddmmyy94/GlanceLyric/releases/download/v1.0.0/SHA256SUMS.txt)
+Download [SHA256SUMS.txt](https://github.com/ddmmyy94/GlanceLyric/releases/download/v1.1.0/SHA256SUMS.txt)
 and compare the package's SHA-256 before running it. Both executables are unsigned.
+
+### Updating from v1.0
+
+**v1.0 cannot notify you about updates.** Download v1.1.0 manually once, close
+the old widget and its watcher, then run the new installer. For portable use,
+extract the new ZIP into a separate folder and run its `GlanceLyric.exe`.
+Keep `_internal` with the executable; do not mix files from different versions.
+Settings and the lyric cache stay in `%USERPROFILE%\.glancelyric`.
+
+Starting with v1.1.0, the app can notify you about later releases. This is an
+update notification, not an automatic installer. See [Updates](#updates).
 
 ### WinGet (planned)
 
@@ -67,7 +78,10 @@ Until then, use the installer or portable ZIP above.
 - **Optional autostart:** a background watcher opens the widget when a new
   Spotify process session starts.
 - **Taskbar placement** to the left of the tray, with space for NetSpeedTray
-  when GlanceLyric detects it.
+  when GlanceLyric detects it. Fonts shrink to fit a small horizontal taskbar
+  and grow back as space allows, without changing your saved preference.
+- **Update notices** with version numbers and release notes, plus a manual
+  **Check for updates…** menu action.
 - **Local settings and lyric cache** in `%USERPROFILE%\.glancelyric`.
 
 ### Screenshots
@@ -76,6 +90,24 @@ Until then, use the installer or portable ZIP above.
 ![GlanceLyric Settings](assets/screenshots/glancelyric-settings.png)
 
 Application screenshots with sample lyrics, not a live Spotify playback session.
+
+## Updates
+
+The widget checks public GitHub releases shortly after it opens. After a
+successful check it waits at least 24 hours before another automatic request.
+Offline failures can retry on the next startup or hourly timer; they do not
+interrupt lyrics. Each newer version gets one automatic notice with release
+notes. Choose **Buka halaman unduhan** to open the official release, or **Nanti**
+to dismiss the notice. The app does not download or run an installer itself.
+
+Use **Check for updates…** from the right-click menu whenever you want, or turn
+off automatic checks in Settings. Early-testing builds include published
+pre-releases and label them as such; stable builds exclude pre-releases.
+
+With autostart enabled, the watcher starts at Windows login and opens the
+widget when Spotify starts. **No update popup appears at login while the widget
+is closed.** Open GlanceLyric yourself or start Spotify to allow its checks.
+There is no notification when the installed version is already up to date.
 
 ## Quick start
 
@@ -98,7 +130,7 @@ SpotX installation.
 
 ### Does it work with Spotify in a browser?
 
-Version 1.0 targets the Spotify desktop app. Browser playback is not supported.
+The current version targets the Spotify desktop app. Browser playback is not supported.
 
 ### Why are some lyrics missing or out of sync?
 
@@ -110,7 +142,8 @@ track or a track without synchronized lyrics may not show timed lines.
 
 GlanceLyric reads the current Spotify media metadata and playback state from
 Windows. To find lyrics, it sends song lookup metadata such as the title and
-artist to LRCLIB over the internet. Settings and cached lyrics live in
+artist to LRCLIB over the internet. From v1.1.0, update checks also request public
+release metadata from GitHub, without song information. Settings and cached lyrics live in
 `%USERPROFILE%\.glancelyric`. See the [privacy notes](PRIVACY.md).
 
 ### How do I enable or disable autostart?
@@ -168,6 +201,8 @@ git clone https://github.com/ddmmyy94/GlanceLyric.git
 cd GlanceLyric
 .\Build.bat
 .\.venv\Scripts\python.exe test_glance.py
+.\.venv\Scripts\python.exe test_updates.py
+.\.venv\Scripts\python.exe test_taskbar.py
 .\.venv\Scripts\python.exe test_release.py
 ```
 
@@ -177,6 +212,7 @@ portable ZIP. If it finds `ISCC.exe` on PATH or in a standard Inno Setup 6
 installation directory, it builds the installer too. Output goes to `dist/`.
 `test_release.py` checks both package hashes, ZIP integrity, notices, and the
 README's bundled assets; it requires a completed installer and portable build.
+The current source builds v1.1.0 packages, not replacements for v1.0.0 assets.
 
 To run from source after installing dependencies:
 
