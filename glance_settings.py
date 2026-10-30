@@ -8,14 +8,14 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (QApplication, QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QSlider, QComboBox, QFrame, QFontDialog,
-                               QColorDialog, QScrollArea, QWidget, QMessageBox)
+                               QColorDialog, QScrollArea, QWidget, QMessageBox, QCheckBox)
 
 from glance_backend import APP_TITLE, DATA_DIR
 from glance_win32 import app_icon
 
 CONFIG_PATH = DATA_DIR / 'taskbar-settings.json'
 DEFAULTS = dict(font_family='Segoe UI', font_size=9, text_color='#FFFFFF',
-                theme='Dark', transparency=100, offset=0.0)
+                theme='Dark', transparency=100, offset=0.0, check_updates=True)
 PALETTES = {
     'Dark': dict(window='#202020', card='#2B2B2B', border='#3B3B3B', text='#FFFFFF',
                  muted='#B8B8B8', hover='#383838', track='#606060'),
@@ -47,6 +47,8 @@ def normalize(config):
             pass
     if config.get('theme') in ('Dark', 'Light', 'System'):
         result['theme'] = config['theme']
+    if isinstance(config.get('check_updates'), bool):
+        result['check_updates'] = config['check_updates']
     color = config.get('text_color')
     if isinstance(color, str) and QColor(color).isValid():
         result['text_color'] = QColor(color).name().upper()
@@ -72,7 +74,7 @@ def stylesheet(theme):
     return f'''
         QDialog, QScrollArea, QWidget#content {{ background: {p['window']}; color: {p['text']}; }}
         QWidget {{ font-family: "{FONT}"; font-size: 12px; }}
-        QLabel {{ color: {p['text']}; background: transparent; }}
+        QLabel, QCheckBox {{ color: {p['text']}; background: transparent; }}
         QLabel#muted {{ color: {p['muted']}; }}
         QFrame#card {{ background: {p['card']}; border: 1px solid {p['border']}; border-radius: 8px; }}
         QPushButton, QComboBox {{ color: {p['text']}; background: {p['card']};
@@ -140,10 +142,16 @@ class SettingsDialog(QDialog):
             'Transparency:', 0, 100, config['transparency'])
         self.transparency.valueChanged.connect(lambda value: self.change('transparency', value))
         hint = QLabel('100% = background transparan. Warna teks diatur terpisah.\n'
+                      'Taskbar kecil: ukuran font menyesuaikan tanpa mengubah pilihan Anda.\n'
                       'Hover lirik: − / + mengubah timing sebesar 0,1 detik.')
         hint.setWordWrap(True)
         hint.setObjectName('muted')
         self.rows.addWidget(hint)
+        self.rows.addSpacing(16)
+        self.auto_updates = QCheckBox('Periksa pembaruan otomatis (sekali sehari)')
+        self.auto_updates.setChecked(config['check_updates'])
+        self.auto_updates.toggled.connect(lambda enabled: self.change('check_updates', enabled))
+        self.rows.addWidget(self.auto_updates)
         self.rows.addStretch()
         scroll.setWidget(content)
         root.addWidget(scroll, 1)

@@ -1,6 +1,71 @@
 # Publikasi GlanceLyric
 
 Repository tujuan yang dikonfirmasi pemilik: `https://github.com/ddmmyy94/GlanceLyric`.
+
+## v1.1.0, 30 Oktober 2026
+
+Source lokal sekarang memakai versi `1.1.0` pada UI, metadata executable, dan
+installer. `tools/build.py` mengambil versi untuk nama ZIP/installer dari
+`glance_backend.APP_VERSION`. Pemilik menyetujui publikasi setelah mengonfirmasi
+uji langsung Spotify dan pergantian mode taskbar pada perangkatnya. Rilis tetap
+**pre-release** karena validasi installer dan perangkat lain belum selesai.
+Paket uji lokal di `output/taskbar-v1.1.0-test-2026-10-30/candidate/dist` bukan
+paket publikasi final. Jangan mengganti aset v1.0.0.
+
+- Catatan rilis: `tools/release-notes-v1.1.0.md`.
+- Perbaikan: widget mengecilkan font untuk mengikuti tinggi taskbar horizontal
+  dan mengembalikan ukuran sesuai ruang yang tersedia tanpa mengubah preferensi.
+- Pemeriksa update: GitHub Releases setelah widget dibuka, request pada worker, throttle sukses 24 jam,
+  pengulangan pemeriksaan gagal pada startup/timer per jam, dan satu notifikasi
+  per versi. Menu **Check for updates…** mengabaikan throttle dan bisa membuka
+  catatan yang sudah pernah ditutup. Settings menyediakan pilihan menonaktifkan
+  pemeriksaan otomatis; notifikasi tidak mengunduh/menjalankan paket.
+- `APP_PRERELEASE = True` mempertahankan kanal uji awal. Publikasikan tag numerik
+  `vMAJOR.MINOR.PATCH` dan tandai pre-release melalui GitHub, bukan suffix tag.
+  Source memeriksa 100 rilis terbaru dan memilih versi numerik tertinggi yang
+  memiliki installer atau ZIP berstatus uploaded. Draft dan rilis tanpa paket
+  tidak memicu notifikasi. Untuk rilis stabil kelak, set `APP_PRERELEASE = False`.
+- Isi body GitHub Release menjadi catatan dalam dialog. UI menampilkannya sebagai
+  teks biasa; link download selalu menuju repository resmi, bukan URL dari body.
+- Pengguna v1.0 perlu memasang v1.1.0 secara manual sekali. Tidak ada mekanisme
+  pada binary v1.0 yang bisa menerima fitur update checker dari jarak jauh.
+- Watcher login belum memeriksa update sendiri. Jika widget belum terbuka,
+  tidak ada popup hanya karena laptop baru login. Jelaskan batasan ini saat
+  mengumumkan pembaruan; jangan menjanjikan notifikasi jarak jauh untuk v1.0.
+
+Jalankan `python test_glance.py`, `python test_updates.py`, dan
+`python test_taskbar.py`. Tes memakai fixture untuk update dan pengukuran mode
+taskbar; tidak mengubah taskbar Windows. `test_taskbar.py` mencakup 144 kombinasi
+per skala aplikasi dan menerima folder bukti sebagai argumen. Variasikan
+`QT_SCALE_FACTOR=1`, `1.25`, dan `1.5` pada proses uji, bukan pengaturan OS.
+Dialog catatan panjang juga diuji setelah diperluas agar tetap di dalam layar.
+Jalankan `python test_release.py`
+setelah build **v1.1.0** selesai; tes paket tidak berlaku untuk dist v1.0 yang
+masih ada. Pertahankan AppId Inno Setup agar installer mengenali aplikasi lama.
+
+Uji langsung Spotify dan perubahan ukuran taskbar mendapat konfirmasi pemilik.
+Tes otomatis mencakup 432 kombinasi pada skala aplikasi 100/125/150%, enam posisi
+executable pada taskbar nyata, dan pemeriksaan GitHub otomatis dari executable.
+Uji manual installer/upgrade/uninstall/login autostart, DPI OS, Windows 10, dan
+komputer lain belum selesai. Catat batasan ini pada body release.
+
+Publikasi v1.1.0:
+
+1. Periksa source/secret, commit pada branch perubahan, lalu merge melalui PR.
+   Pertahankan identitas pemilik; jangan menambahkan trailer atribusi otomatis.
+2. Bangun dari commit final yang bersih pada worktree terpisah. Jangan menimpa
+   executable paket uji yang sedang dipakai pemilik atau aset v1.0.0.
+3. Jalankan tes source, `test_release.py`, dan runtime executable dari ZIP hasil
+   ekstraksi. Tag `v1.1.0` harus menunjuk commit build yang sama.
+4. Buat draft pre-release dengan installer `GlanceLyric-Setup-1.1.0-x64.exe`,
+   ZIP `GlanceLyric-v1.1.0-windows-x64.zip`, dan `SHA256SUMS.txt`, lalu publikasikan.
+5. Unduh ketiga aset tanpa autentikasi dan cocokkan hash dengan build lokal.
+   Gunakan URL `/releases/tag/v1.1.0`, bukan `/releases/latest` untuk pre-release.
+6. Setelah verifikasi, perbarui website dan pengumuman upgrade v1.0. Backup HTML
+   di luar web root dan pertahankan CSS/JS/statistik serta konfigurasi yang aktif.
+
+## Catatan rilis awal v1.0.0
+
 Versi aplikasi di UI: `v1.0`; versi paket installer: `1.0.0`.
 Metadata file: `1.0.0.0`; kandidat tag: `v1.0.0`. Perbedaan format ini disengaja;
 tidak perlu menaikkan versi untuk publikasi awal.

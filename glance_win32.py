@@ -72,7 +72,7 @@ def native_rect(hwnd):
 
 
 def dock_rect(screen, bar, tray, width, height, neighbor=None):
-    """Logical-pixel layout; tall fonts sit above the bar instead of clipping."""
+    """Logical-pixel layout; fit horizontal taskbar rows, including small mode."""
     width, height = min(width, screen.width()), min(height, screen.height())
     if bar.isEmpty() or not bar.intersects(screen):
         x, y = screen.right() - width - 12, screen.bottom() - height - 12
@@ -83,6 +83,10 @@ def dock_rect(screen, bar, tray, width, height, neighbor=None):
             edge = min(edge, neighbor.left())
             # Shell_TrayWnd may include extra padding above the actual taskbar row.
             alignment = bar.intersected(neighbor)
+        alignment = alignment.intersected(screen)
+        # Auto-hide can leave only a thin edge: don't squeeze two lyrics into it.
+        if alignment.height() >= 16:
+            height = min(height, alignment.height())
         # Match the measured 8-DIP gap between NetSpeedTray and TrayNotifyWnd.
         width = min(width, max(1, edge - 8 - screen.left()))
         x = edge - width - 8

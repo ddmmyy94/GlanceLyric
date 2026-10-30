@@ -9,13 +9,14 @@ from unittest.mock import Mock, patch
 
 from PySide6.QtCore import QRect, Qt, QPointF, QEvent
 from PySide6.QtGui import QEnterEvent, QCursor
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox, QTextEdit
 from PySide6.QtTest import QTest
 
 import glance_backend
 import glance_win32
 import glance_watcher
 import glance_settings as settings
+from glance_updates import UpdateChecker, RELEASES_URL
 from glance_widget import LyricWidget
 from glance_win32 import dock_rect, taskbar_geometry, spotify_pids
 
@@ -56,9 +57,9 @@ def main():
     bar, tray = QRect(0, 1032, 1920, 48), QRect(1680, 1032, 240, 48)
     rect = dock_rect(screen, bar, tray, 320, 42)
     assert rect.right() < tray.left() and bar.contains(rect)
-    assert dock_rect(screen, bar, tray, 320, 70).bottom() < bar.top()
+    assert bar.contains(dock_rect(screen, bar, tray, 320, 70))
     top = dock_rect(screen, QRect(0, 0, 1920, 48), QRect(1680, 0, 240, 48), 320, 70)
-    assert top.top() >= 48
+    assert top.top() == 0 and top.height() == 48
     left = dock_rect(screen, QRect(0, 0, 48, 1080), QRect(0, 900, 48, 180), 320, 42)
     assert left.left() >= 48
     negative = QRect(-1920, -200, 1920, 1080)
@@ -75,6 +76,14 @@ def main():
     assert speed.left() - (docked.right() + 1) == 8
     assert docked.center().y() == speed.center().y()
     assert not docked.intersects(speed) and shell.contains(docked)
+    for size in (24, 32, 40, 48):
+        small_bar = QRect(0, 1080 - size, 1920, size)
+        small_tray = QRect(1680, 1080 - size, 240, size)
+        assert small_bar.contains(dock_rect(screen, small_bar, small_tray, 320, 70))
+        small_top = QRect(0, 0, 1920, size)
+        assert small_top.contains(dock_rect(screen, small_top, QRect(1680, 0, 240, size), 320, 70))
+    hidden = QRect(0, 1078, 1920, 48)
+    assert dock_rect(screen, hidden, QRect(), 320, 42).bottom() < hidden.top()
     # Follow a changed network-widget width without overlap; ignore free-floating windows.
     wider = QRect(1460, 1032, 188, 48)
     assert dock_rect(screen, shell, notification, 260, 42, wider).right() == 1451
@@ -110,6 +119,7 @@ def main():
                                       theme='wrong', text_color='not a color'))
         assert bad['font_size'] == 9 and bad['transparency'] == 100 and bad['offset'] == 0
         widget = LyricWidget(start_monitor=False, config=settings.DEFAULTS)
+        widget.updater = UpdateChecker(widget.inbox, Path(directory) / 'update-check.json')
         widget.show()
         app.processEvents()
         assert len(widget.labels) == 2
@@ -140,12 +150,35 @@ def main():
         widget.set_text('Short lyric', 'Next')
         app.processEvents()
         assert widget.geometry() == anchor
+        # Change taskbar size without restarting; fit both lines and restore the preference.
+        for configured_size in (7, 9, 20):
+            widget.config['font_size'] = configured_size
+            for size in (48, 32, 24, 48):
+                small_bar = QRect(0, 1080 - size, 1920, size)
+                small_tray = QRect(1680, 1080 - size, 240, size)
+                def small_geometry(width, height):
+                    return dock_rect(screen, small_bar, small_tray, width, height)
+                with patch('glance_widget.taskbar_geometry', side_effect=small_geometry):
+                    widget.dock()
+                    app.processEvents()
+                    assert small_bar.contains(widget.geometry())
+                    for label in widget.labels:
+                        assert label.fontMetrics().height() <= label.height()
+                        assert widget.rect().contains(label.geometry())
+                    assert widget.labels[0].geometry().bottom() < widget.labels[1].geometry().top()
+                    assert widget.config['font_size'] == configured_size
+                    if configured_size == 9 and size == 48:
+                        assert widget.labels[0].font() == original_fonts[0]
+        widget.config.update(settings.DEFAULTS)
+        widget.apply_settings()
+        app.processEvents()
+        assert widget.geometry() == anchor
         widget.set_text('Short lyric', long_line)
         app.processEvents()
         assert widget.width() > 260 and widget.geometry().right() == anchor.right()
         assert widget.labels[1].fontMetrics().horizontalAdvance(long_line) <= widget.labels[1].width()
         assert [a.text() for a in widget.menu.actions() if not a.isSeparator()] == [
-            'Settings', 'Show Spotify', 'About GlanceLyric', 'Exit']
+            'Settings', 'Show Spotify', 'Check for updates…', 'About GlanceLyric', 'Exit']
         lyric_geometry = widget.geometry()
         label_geometry = [label.geometry() for label in widget.labels]
         point = QPointF(widget.rect().center())
@@ -215,23 +248,84 @@ def main():
         widget.tick()
         assert widget.lines == [] and widget.key is None
 
+        # Update results share the worker inbox but must never be treated as Spotify messages.
+        widget.key = ('artist', 'title', 'album', 100)
+        widget.lines, widget.times = [(1, 'first'), (2, 'second')], [1, 2]
+        widget.index = None
+        widget.clock.update(1, 0, False, 100)
+        widget.tick()
+        playing_key = widget.key
+        before_update = widget.full_text
+        with patch.object(widget.updater, 'ensure', return_value=True) as check:
+            widget.config['check_updates'] = False
+            widget.check_updates()
+            check.assert_not_called()
+            widget.check_updates(manual=True)
+            check.assert_called_once_with(manual=True)
+            assert not widget.update_action.isEnabled()
+        widget.inbox.put(dict(update_check=True, manual=True, release=None))
+        widget.tick()
+        app.processEvents()
+        assert widget.update_action.isEnabled() and widget.update_dialog.isVisible()
+        widget.update_dialog.close()
+        widget.config['check_updates'] = True
+        widget.inbox.put(dict(update_check=True, manual=False, error=True))
+        widget.tick()
+        assert not widget.update_dialog.isVisible() and widget.full_text == before_update
+        update = dict(version='9.0.0', prerelease=True,
+                      notes='<b>Taskbar small diperbaiki.</b>\n' + 'Catatan pembaruan untuk pengujian.\n' * 100,
+                      url=RELEASES_URL + '/tag/v9.0.0')
+        widget.config['check_updates'] = False
+        widget.inbox.put(dict(update_check=True, manual=False, release=update))
+        widget.tick()
+        assert not widget.update_dialog.isVisible()
+        widget.config['check_updates'] = True
+        widget.inbox.put(dict(update_check=True, manual=False, release=update))
+        widget.tick()
+        app.processEvents()
+        box = widget.update_dialog
+        assert box.isVisible() and box.textFormat() == Qt.TextFormat.PlainText
+        assert box.windowModality() == Qt.WindowModality.NonModal
+        assert update['notes'][:800] in box.informativeText() and box.detailedText() == update['notes']
+        details = next(button for button in box.buttons()
+                       if box.buttonRole(button) == QMessageBox.ButtonRole.ActionRole)
+        QTest.mouseClick(details, Qt.MouseButton.LeftButton)
+        QTest.qWait(80)
+        assert box.findChild(QTextEdit).isVisible()
+        assert box.screen().availableGeometry().contains(box.frameGeometry())
+        QTest.mouseClick(details, Qt.MouseButton.LeftButton)
+        assert widget.full_text == before_update and widget.key == playing_key
+        assert widget.updater.state['notified_version'] == '9.0.0'
+        with patch('glance_widget.QDesktopServices.openUrl') as open_url:
+            QTest.mouseClick(next(b for b in box.buttons() if b.text() == 'Nanti'), Qt.MouseButton.LeftButton)
+            open_url.assert_not_called()
+            widget.show_update_result(dict(manual=True, release=update))
+            app.processEvents()
+            button = next(b for b in widget.update_dialog.buttons() if b.text() == 'Buka halaman unduhan')
+            QTest.mouseClick(button, Qt.MouseButton.LeftButton)
+            assert open_url.call_args.args[0].toString() == update['url']
+
         widget.open_settings()
         app.processEvents()
         # Title bar must carry the app mark and name, like NetSpeedTray's dialog.
-        assert widget.settings.windowTitle() == 'GlanceLyric v1.0'
-        assert widget.windowTitle() == 'GlanceLyric v1.0'
+        assert widget.settings.windowTitle() == glance_backend.APP_TITLE
+        assert widget.windowTitle() == glance_backend.APP_TITLE
         for icon in (widget.windowIcon(), widget.settings.windowIcon()):
             assert not icon.isNull() and not icon.pixmap(16, 16).isNull()
         widget.settings.size_slider.setValue(12)
+        widget.settings.auto_updates.setChecked(False)
         widget.settings.theme.setCurrentText('Light')
         widget.settings.reject()
         assert widget.config['font_size'] == 9 and widget.config['theme'] == 'Dark'
+        assert widget.config['check_updates']
         widget.open_settings()
         widget.settings.size_slider.setValue(11)
         widget.settings.transparency.setValue(25)
+        widget.settings.auto_updates.setChecked(False)
         widget.settings.save()
         assert widget.config['font_size'] == 11 and widget.config['transparency'] == 25
         assert settings.load_settings()['font_size'] == 11
+        assert not settings.load_settings()['check_updates']
         for theme in ('Dark', 'Light', 'System'):
             widget.config['theme'] = theme
             widget.apply_settings()
@@ -256,7 +350,8 @@ def main():
         assert not widget.controls.isVisible() and not widget.hover_timer.isActive()
     print('PASS: LRC parsing, playback clock, docking, native process detection, session autostart, settings Save/Cancel,')
     print('      floating hover controls, timing persistence, static lyric pages, seek, stale results, themes.')
-    print('      executable launch, isolated child runtime, executable autostart, title bar and icon.')
+    print('      executable launch, isolated child runtime, executable autostart, title bar and icon,')
+    print('      small taskbar auto-fit/restore, nonblocking update notes, manual download, update preferences.')
 
 
 if __name__ == '__main__':

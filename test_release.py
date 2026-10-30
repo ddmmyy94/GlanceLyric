@@ -1,12 +1,14 @@
-"""Check local release assets after Build.bat. Uses only the Python standard library."""
+"""Check local release assets after Build.bat using the source application version."""
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 import hashlib
 import re
 import zipfile
 
+from glance_backend import APP_VERSION
+
 ROOT = Path(__file__).resolve().parent
-ASSETS = {'GlanceLyric-Setup-1.0.0-x64.exe', 'GlanceLyric-v1.0-windows-x64.zip'}
+ASSETS = {f'GlanceLyric-Setup-{APP_VERSION}-x64.exe', f'GlanceLyric-v{APP_VERSION}-windows-x64.zip'}
 
 
 def main():
@@ -23,7 +25,7 @@ def main():
         with (dist / name).open('rb') as stream:
             assert hashlib.file_digest(stream, 'sha256').hexdigest() == expected, name
 
-    with zipfile.ZipFile(dist / 'GlanceLyric-v1.0-windows-x64.zip') as archive:
+    with zipfile.ZipFile(dist / f'GlanceLyric-v{APP_VERSION}-windows-x64.zip') as archive:
         assert archive.testzip() is None, 'Corrupt ZIP member'
         members = set(archive.namelist())
         for name in ('GlanceLyric.exe', 'README.md', 'LICENSE', 'THIRD-PARTY.md', 'PRIVACY.md'):

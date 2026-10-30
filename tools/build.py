@@ -9,6 +9,8 @@ import sys
 from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from glance_backend import APP_VERSION
 
 
 def main():
@@ -54,7 +56,7 @@ def main():
     for name, url in extra_licenses.items():
         with urlopen(url, timeout=30) as response:
             (destination / 'licenses' / name).write_bytes(response.read())
-    archive = shutil.make_archive(str(ROOT / 'dist' / 'GlanceLyric-v1.0-windows-x64'),
+    archive = shutil.make_archive(str(ROOT / 'dist' / f'GlanceLyric-v{APP_VERSION}-windows-x64'),
                                   'zip', ROOT / 'dist', 'GlanceLyric')
     print(f'Portable package: {destination}\nArchive: {archive}')
     compiler = shutil.which('ISCC.exe')
@@ -73,7 +75,7 @@ def main():
         print('Setup.exe not built: install Inno Setup 6, then run Build.bat again.')
     artifacts = [Path(archive)]
     if compiler:
-        artifacts.append(ROOT / 'dist' / 'GlanceLyric-Setup-1.0.0-x64.exe')
+        artifacts.append(ROOT / 'dist' / f'GlanceLyric-Setup-{APP_VERSION}-x64.exe')
     checksums = ''.join(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n'
                         for path in artifacts)
     (ROOT / 'dist' / 'SHA256SUMS.txt').write_text(checksums, encoding='utf-8')
