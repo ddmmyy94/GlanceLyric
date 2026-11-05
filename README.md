@@ -11,24 +11,25 @@
 
 GlanceLyric displays two lines of synchronized lyrics beside the system tray.
 It reads Spotify's media session through Windows and fetches lyrics from
-[LRCLIB](https://lrclib.net). You can use it independently of SpotX.
+[LRCLIB](https://lrclib.net).
 
 [Official website](https://ggdealstore.site/glancelyric) · [Source](https://github.com/ddmmyy94/GlanceLyric) · [Install](#install) · [Features](#features) · [Quick start](#quick-start) · [FAQ](#faq) · [Support](#support-glancelyric)
 
 ## Install
 
-**Windows pre-release, v1.1.0.** The owner has confirmed Spotify lyrics and
-normal/small taskbar switching on their Windows PC. Automated layout, update,
-package, and portable runtime checks have passed. Installer upgrade, uninstall,
-login autostart, and testing on other PCs still need manual validation.
+**Windows pre-release, v1.1.1.** This release adds update notices at Windows
+login, playback-clock fixes, and a direct SociaBuzz support menu. Automated
+layout, update, package, and portable runtime checks have passed. Installer
+upgrade, uninstall, login autostart, and Spotify on other PCs still need manual
+validation.
 
-The [v1.1.0 pre-release](https://github.com/ddmmyy94/GlanceLyric/releases/tag/v1.1.0)
+The [v1.1.1 pre-release](https://github.com/ddmmyy94/GlanceLyric/releases/tag/v1.1.1)
 is available with the installer, portable ZIP, and SHA-256 checksums. GlanceLyric
 remains free to download and use, with no donation required.
 
 ### Windows installer
 
-Download [**`GlanceLyric-Setup-1.1.0-x64.exe`**](https://github.com/ddmmyy94/GlanceLyric/releases/download/v1.1.0/GlanceLyric-Setup-1.1.0-x64.exe) and run it.
+Download [**`GlanceLyric-Setup-1.1.1-x64.exe`**](https://github.com/ddmmyy94/GlanceLyric/releases/download/v1.1.1/GlanceLyric-Setup-1.1.1-x64.exe) and run it.
 The installer installs the app for your Windows account, adds a Start Menu
 shortcut, and offers optional desktop and autostart shortcuts/settings.
 You do not need to install Python or run the installer as Administrator.
@@ -38,16 +39,16 @@ the Spotify desktop app; an internet connection to fetch uncached lyrics.
 
 ### Portable ZIP
 
-Download [**`GlanceLyric-v1.1.0-windows-x64.zip`**](https://github.com/ddmmyy94/GlanceLyric/releases/download/v1.1.0/GlanceLyric-v1.1.0-windows-x64.zip), extract it,
+Download [**`GlanceLyric-v1.1.1-windows-x64.zip`**](https://github.com/ddmmyy94/GlanceLyric/releases/download/v1.1.1/GlanceLyric-v1.1.1-windows-x64.zip), extract it,
 and run `GlanceLyric.exe` inside the `GlanceLyric` folder. Keep `_internal` beside
 the executable. The ZIP includes Python and Qt.
 
-Download [SHA256SUMS.txt](https://github.com/ddmmyy94/GlanceLyric/releases/download/v1.1.0/SHA256SUMS.txt)
+Download [SHA256SUMS.txt](https://github.com/ddmmyy94/GlanceLyric/releases/download/v1.1.1/SHA256SUMS.txt)
 and compare the package's SHA-256 before running it. Both executables are unsigned.
 
 ### Updating from v1.0
 
-**v1.0 cannot notify you about updates.** Download v1.1.0 manually once, close
+**v1.0 cannot notify you about updates.** Download v1.1.1 manually once, close
 the old widget and its watcher, then run the new installer. For portable use,
 extract the new ZIP into a separate folder and run its `GlanceLyric.exe`.
 Keep `_internal` with the executable; do not mix files from different versions.
@@ -76,12 +77,14 @@ Until then, use the installer or portable ZIP above.
 - **Appearance settings** for fonts, text size, colors, theme, and transparency.
 - **Timing adjustment** in 0.1-second steps when the lyrics run early or late.
 - **Optional autostart:** a background watcher opens the widget when a new
-  Spotify process session starts.
+  Spotify process session starts. From v1.1.1, new installer setups select it
+  by default; you can change it in Settings. Upgrades retain your installer choices.
 - **Taskbar placement** to the left of the tray, with space for NetSpeedTray
   when GlanceLyric detects it. Fonts shrink to fit a small horizontal taskbar
   and grow back as space allows, without changing your saved preference.
 - **Update notices** with version numbers and release notes, plus a manual
   **Check for updates…** menu action.
+- **Support this Project** opens the maintainer's SociaBuzz page in your browser.
 - **Local settings and lyric cache** in `%USERPROFILE%\.glancelyric`.
 
 ### Screenshots
@@ -93,21 +96,33 @@ Application screenshots with sample lyrics, not a live Spotify playback session.
 
 ## Updates
 
-The widget checks public GitHub releases shortly after it opens. After a
-successful check it waits at least 24 hours before another automatic request.
-Offline failures can retry on the next startup or hourly timer; they do not
-interrupt lyrics. Each newer version gets one automatic notice with release
-notes. Choose **Buka halaman unduhan** to open the official release, or **Nanti**
-to dismiss the notice. The app does not download or run an installer itself.
+From v1.1.1, the Windows-login watcher checks public GitHub releases without
+waiting for Spotify or the lyric widget. Enable **Start with Windows** and
+automatic checks in Settings to receive these notices. Windows must allow
+GlanceLyric in **Settings → Apps → Startup**. A powered-off PC cannot receive
+notices; checks start after you sign in and need an internet connection.
+
+The update window shows your installed version, the newer version, and scrollable
+release notes. **Download** opens the official GitHub release in your browser;
+you download and run the installer yourself. **Not Now** dismisses the notice
+until the next Windows-login watcher session. **Skip This Version** suppresses
+that version; later releases can still notify you. A manual check can show a
+skipped release. The widget and watcher share a lock to avoid duplicate notices.
+
+After a successful request, automatic checks wait at least one hour. At login,
+the watcher checks again even if the last check was recent. Offline checks retry
+every five minutes while the app is running. Automatic failures do not open error
+windows or interrupt lyrics.
 
 Use **Check for updates…** from the right-click menu whenever you want, or turn
 off automatic checks in Settings. Early-testing builds include published
 pre-releases and label them as such; stable builds exclude pre-releases.
 
-With autostart enabled, the watcher starts at Windows login and opens the
-widget when Spotify starts. **No update popup appears at login while the widget
-is closed.** Open GlanceLyric yourself or start Spotify to allow its checks.
 There is no notification when the installed version is already up to date.
+Older binaries keep their old behavior: v1.0 has no update checker, and v1.1.0
+checks only while the widget is open, at most once per day. Install v1.1.1 once
+after its release to get login notices and these fixes. Downloading a ZIP alone
+does not install a startup task; portable users must enable **Start with Windows**.
 
 ## Quick start
 
@@ -123,10 +138,9 @@ Launch GlanceLyric yourself or restart Spotify to show it again.
 
 ## FAQ
 
-### Do I need SpotX or Python?
+### Do I need Python?
 
-No. The release packages include the runtime. GlanceLyric does not depend on a
-SpotX installation.
+No. The release packages include the runtime.
 
 ### Does it work with Spotify in a browser?
 
@@ -148,7 +162,8 @@ release metadata from GitHub, without song information. Settings and cached lyri
 
 ### How do I enable or disable autostart?
 
-Select the autostart task in the installer, or run these commands from the
+Use **Settings → Start with Windows** (v1.1.1), select the autostart task in the installer,
+or run these commands from the
 folder containing `GlanceLyric.exe`:
 
 ```powershell
@@ -156,8 +171,9 @@ folder containing `GlanceLyric.exe`:
 .\GlanceLyric.exe --uninstall
 ```
 
-The second command removes the autostart registration; it does not uninstall
-the application. The change applies to subsequent Windows logins. To stop an
+From v1.1.1, the first command also starts the watcher immediately. The second
+command removes the autostart registration; it does not uninstall
+the application. Disabling startup applies to subsequent Windows logins. To stop an
 existing watcher immediately, end its GlanceLyric process in Task Manager.
 
 ### How do I uninstall it?
@@ -202,6 +218,8 @@ cd GlanceLyric
 .\Build.bat
 .\.venv\Scripts\python.exe test_glance.py
 .\.venv\Scripts\python.exe test_updates.py
+.\.venv\Scripts\python.exe test_update_ui.py
+.\.venv\Scripts\python.exe test_timing.py
 .\.venv\Scripts\python.exe test_taskbar.py
 .\.venv\Scripts\python.exe test_release.py
 ```
@@ -212,7 +230,7 @@ portable ZIP. If it finds `ISCC.exe` on PATH or in a standard Inno Setup 6
 installation directory, it builds the installer too. Output goes to `dist/`.
 `test_release.py` checks both package hashes, ZIP integrity, notices, and the
 README's bundled assets; it requires a completed installer and portable build.
-The current source builds v1.1.0 packages, not replacements for v1.0.0 assets.
+The current source builds v1.1.1 packages, not replacements for older release assets.
 
 To run from source after installing dependencies:
 

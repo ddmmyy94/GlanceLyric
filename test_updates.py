@@ -63,10 +63,21 @@ def main():
             assert inbox.get_nowait()['release'] is None
             loaded._fetch(True)
             assert inbox.get_nowait()['release']['version'] == '9.0.0'
+            loaded._fetch(False, startup=True)
+            assert inbox.get_nowait()['release']['version'] == '9.0.0'  # Reminder at next login.
+            loaded.skip_version('9.0.0')
+            loaded._fetch(False, startup=True)
+            assert inbox.get_nowait()['release'] is None
+            loaded._fetch(True)
+            assert inbox.get_nowait()['release']['version'] == '9.0.0'
+            loaded.state.pop('skipped_version')
+            loaded._save()
             with patch('glance_updates.threading.Thread') as thread:
                 assert loaded.ensure(manual=True)
                 assert not loaded.ensure(manual=True)  # No concurrent check.
                 thread.assert_called_once()
+                loaded.busy = False
+                assert loaded.ensure(startup=True)  # Login bypasses a recent successful check.
                 loaded.busy = False
                 loaded.state['checked_at'] = 100000 - CHECK_INTERVAL
                 assert loaded.ensure()
@@ -100,7 +111,7 @@ def main():
     assert f"StringStruct('ProductVersion', '{APP_VERSION}')" in metadata
     assert f"StringStruct('FileVersion', '{APP_VERSION}.0')" in metadata
     assert 'filevers=' + str((*version_tuple(APP_VERSION), 0)) in metadata
-    print('PASS: version ordering, release channels/assets, safe release URL, notes, daily throttle,')
+    print('PASS: version ordering, release channels/assets, safe release URL, notes, hourly throttle/login bypass,')
     print('      manual checks, duplicate suppression, offline/malformed data, consistent version metadata.')
 
 

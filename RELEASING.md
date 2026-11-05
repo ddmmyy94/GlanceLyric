@@ -2,9 +2,38 @@
 
 Repository tujuan yang dikonfirmasi pemilik: `https://github.com/ddmmyy94/GlanceLyric`.
 
-## v1.1.0, 30 Oktober 2026
+## v1.1.1, publikasi 6 November 2026
 
-Source lokal sekarang memakai versi `1.1.0` pada UI, metadata executable, dan
+Source, metadata executable, dan installer sekarang memakai `1.1.1`.
+Bagian versi lama di bawah adalah catatan historis. Pemilik menyetujui publikasi
+v1.1.1 sebagai pre-release dengan commit/tag signed. Jangan mengganti aset rilis lama atau mengklaim pengguna
+binary lama menerima fitur baru tanpa memasang pembaruan.
+
+- Catatan rilis: `tools/release-notes-v1.1.1.md`.
+- Watcher memakai QApplication tanpa widget lirik agar bisa menampilkan dialog
+  update sesudah login, sebelum Spotify dibuka. Lock bersama mencegah dua popup.
+- Pemeriksaan sukses memiliki jeda satu jam; login memicu pemeriksaan baru.
+  Kegagalan jaringan dicoba lagi setelah lima menit. Not Now mengingatkan pada
+  sesi watcher login berikutnya; Skip This Version hanya melewati versi tersebut.
+- Installer baru mencentang autostart secara default. Upgrade mempertahankan
+  pilihan task sebelumnya. Settings menyediakan Start with Windows; portable
+  memerlukan pilihan ini atau `GlanceLyric.exe --install`. Windows dapat memblokir
+  startup melalui pengaturan OS, dan aplikasi tidak bisa mengabaikan pilihan itu.
+- Timing memakai anchor monotonic untuk snapshot yang sama, termasuk pause/resume.
+  Timestamp default/future tidak menambahkan umur besar. Pemilihan sesi mengutamakan
+  Spotify yang playing; lookup/cache lirik memvalidasi identitas dan durasi rekaman.
+- Menu Support this Project membuka https://sociabuzz.com/ddmmyy94/tribe.
+- Jalankan `test_glance.py`, `test_updates.py`, `test_update_ui.py`, `test_timing.py`,
+  dan `test_taskbar.py`, lalu build dan jalankan `test_release.py`. Uji login/reboot,
+  upgrade installer, dan Spotify di komputer lain tetap memerlukan perangkat nyata.
+- Publikasikan tag signed `v1.1.1` hanya setelah commit final, build, dan persetujuan
+  publikasi. Lampirkan Setup, ZIP, dan SHA256SUMS; perbarui link download README
+  setelah aset publik tersedia. Pengguna v1.1.0 dapat menerima notifikasi lewat
+  checker widget lama; pengguna v1.0 harus mengunduh pembaruan sendiri.
+
+## v1.1.0, 30 Oktober 2026 (historis)
+
+Source rilis tersebut memakai versi `1.1.0` pada UI, metadata executable, dan
 installer. `tools/build.py` mengambil versi untuk nama ZIP/installer dari
 `glance_backend.APP_VERSION`. Pemilik menyetujui publikasi setelah mengonfirmasi
 uji langsung Spotify dan pergantian mode taskbar pada perangkatnya. Rilis tetap
@@ -286,6 +315,5 @@ MIT tidak mewajibkan pembuat turunan membagikan kode sumbernya. GPLv3 berbeda:
 distribusi turunan harus memenuhi ketentuan GPL, termasuk penyediaan source.
 
 LICENSE menambahkan identitas `ddmmyy94` dan mempertahankan notice workspace asal
-yang sudah ada. Notice tersebut bukan klaim bahwa GlanceLyric adalah produk
-resmi upstream SpotX. Lisensi dependency berlaku terpisah; build mengumpulkan
+yang sudah ada. Lisensi dependency berlaku terpisah; build mengumpulkan
 notice tersedia dalam `licenses/`. Rincian Qt/PySide6 ada di `THIRD-PARTY.md`.
