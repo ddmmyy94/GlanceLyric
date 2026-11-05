@@ -13,7 +13,7 @@ instalasi, dan penggunaan tidak memerlukan donasi.
 
 Persyaratan: Windows 10 versi 1809 atau lebih baru, atau Windows 11 pada
 perangkat x64; Spotify desktop; internet untuk mengambil lirik yang belum ada
-di cache. Paket menyertakan runtime, sehingga Python dan SpotX tidak diperlukan.
+di cache. Paket menyertakan runtime, sehingga Python tidak diperlukan.
 
 ## Instalasi
 

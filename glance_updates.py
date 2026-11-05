@@ -13,7 +13,7 @@ from glance_backend import APP_NAME, APP_VERSION, APP_PRERELEASE, DATA_DIR
 
 RELEASES_URL = 'https://github.com/ddmmyy94/GlanceLyric/releases'
 API_URL = 'https://api.github.com/repos/ddmmyy94/GlanceLyric/releases'
-CHECK_INTERVAL = 24 * 60 * 60
+CHECK_INTERVAL = 60 * 60
 
 
 def version_tuple(value):
@@ -55,21 +55,25 @@ class UpdateChecker:
         self.inbox = inbox
         self.path = Path(state_path) if state_path is not None else DATA_DIR / 'update-check.json'
         self.busy = False
+        self.state = {}
+        self.reload()
+
+    def reload(self):
         try:
             state = json.loads(self.path.read_text(encoding='utf-8'))
+            self.state = state if isinstance(state, dict) else {}
         except (OSError, ValueError):
-            state = {}
-        self.state = state if isinstance(state, dict) else {}
+            self.state = {}
 
-    def ensure(self, manual=False):
+    def ensure(self, manual=False, startup=False):
         checked = self.state.get('checked_at')
         if self.busy:
             return False
-        if not manual and type(checked) in (int, float) and 0 <= checked < 1e12 and \
+        if not manual and not startup and type(checked) in (int, float) and 0 <= checked < 1e12 and \
                 0 <= time.time() - checked < CHECK_INTERVAL:
             return False
         self.busy = True
-        threading.Thread(target=self._fetch, args=(manual,), daemon=True, name='UpdateChecker').start()
+        threading.Thread(target=self._fetch, args=(manual, startup), daemon=True, name='UpdateChecker').start()
         return True
 
     def _save(self):
@@ -85,7 +89,11 @@ class UpdateChecker:
         self.state['notified_version'] = version
         self._save()
 
-    def _fetch(self, manual):
+    def skip_version(self, version):
+        self.state['skipped_version'] = version
+        self._save()
+
+    def _fetch(self, manual, startup=False):
         message = dict(update_check=True, manual=manual)
         try:
             # ponytail: inspect the newest 100 releases; paginate if this project outgrows that.
@@ -95,7 +103,8 @@ class UpdateChecker:
             release = select_update(response.json())
             self.state['checked_at'] = time.time()
             self._save()
-            if not manual and release and release['version'] == self.state.get('notified_version'):
+            if not manual and release and (release['version'] == self.state.get('skipped_version') or
+                    (not startup and release['version'] == self.state.get('notified_version'))):
                 release = None
             message['release'] = release
         except (requests.RequestException, ValueError, TypeError):

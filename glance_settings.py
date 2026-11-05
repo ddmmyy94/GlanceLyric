@@ -148,7 +148,12 @@ class SettingsDialog(QDialog):
         hint.setObjectName('muted')
         self.rows.addWidget(hint)
         self.rows.addSpacing(16)
-        self.auto_updates = QCheckBox('Periksa pembaruan otomatis (sekali sehari)')
+        from glance_watcher import autostart_enabled
+        self.initial_autostart = autostart_enabled()
+        self.autostart = QCheckBox('Start with Windows — buka otomatis saat Spotify berjalan')
+        self.autostart.setChecked(self.initial_autostart)
+        self.rows.addWidget(self.autostart)
+        self.auto_updates = QCheckBox('Periksa pembaruan saat login Windows dan setiap jam')
         self.auto_updates.setChecked(config['check_updates'])
         self.auto_updates.toggled.connect(lambda enabled: self.change('check_updates', enabled))
         self.rows.addWidget(self.auto_updates)
@@ -237,6 +242,12 @@ class SettingsDialog(QDialog):
     def save(self):
         try:
             save_settings(self.config)
+            if self.autostart.isChecked() != self.initial_autostart:
+                from glance_watcher import install_autostart
+                from glance_win32 import start_app
+                install_autostart(remove=not self.autostart.isChecked())
+                if self.autostart.isChecked():
+                    start_app('--watch')
         except OSError as exc:
             logging.exception('Cannot save widget settings')
             QMessageBox.warning(self, 'Settings', f'Pengaturan gagal disimpan:\n{exc}')

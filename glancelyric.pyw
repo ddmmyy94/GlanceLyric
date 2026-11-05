@@ -16,6 +16,7 @@ def check(report_path):
         from glance_widget import LyricWidget
         from glance_win32 import app_command
         from glance_watcher import Watcher
+        from glance_update_ui import UpdateDialog
         import winrt.windows.media.control
         import winrt.windows.foundation
         import winrt.windows.foundation.collections
@@ -27,6 +28,7 @@ def check(report_path):
                 if 'spotify' in session.source_app_user_model_id.lower():
                     await session.try_get_media_properties_async()
                     session.get_timeline_properties()
+                    session.get_playback_info().playback_rate
             return True
 
         media_ready = asyncio.run(media_check())
@@ -39,12 +41,20 @@ def check(report_path):
         assert not dialog.windowIcon().pixmap(16, 16).isNull()
         assert parse_lrc('[00:01]GlanceLyric') == [(1.0, 'GlanceLyric')]
         assert len(widget.labels) == 2
+        assert any(action.text() == 'Support this Project' for action in widget.menu.actions())
+        update_dialog = UpdateDialog(dict(version='9.0.0', prerelease=True, notes='Runtime check',
+                                          url='https://github.com/ddmmyy94/GlanceLyric/releases'),
+                                     widget.updater, 'Dark')
+        assert update_dialog.notes.toPlainText() == 'Runtime check'
+        assert update_dialog.download.text() == 'Download'
+        update_dialog.close()
         launches = []
         watcher = Watcher(detect=lambda: {1}, launch=lambda: launches.append(True))
         watcher.poll()
         watcher.poll()
         assert launches == [True]
         report.update(ok=True, title=APP_TITLE, icon=True, smtc_imports=True,
+                      update_dialog=True, support_menu=True,
                       smtc_connection=media_ready,
                       watch_command=app_command('--watch'))
         widget.close()

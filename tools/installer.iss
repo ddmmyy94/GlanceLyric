@@ -1,4 +1,4 @@
-#define AppVersion "1.1.0"
+#define AppVersion "1.1.1"
 #define AppName "GlanceLyric"
 
 [Setup]
@@ -30,7 +30,7 @@ RestartApplications=no
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
-Name: "autostart"; Description: "Start GlanceLyric with Windows (show lyrics when Spotify opens)"; Flags: unchecked
+Name: "autostart"; Description: "Start with Windows (check updates at login and show lyrics when Spotify opens)"
 
 [Files]
 Source: "..\dist\GlanceLyric\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "Install.bat,Uninstall.bat,GlanceLyric.bat,Aktifkan-Autostart.bat,Matikan-Autostart.bat,tools\*"

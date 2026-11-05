@@ -15,14 +15,20 @@ and version. These requests contain no song metadata or browser identifier.
 You can turn off automatic checks in Settings and use **Check for updates…**
 when you choose. v1.0 does not make these update-check requests.
 
-The checker stores its last successful check time and last notified version in
-`%USERPROFILE%\.glancelyric\update-check.json`. It checks after the widget opens and then
-at most once per day after a successful request; offline failures can retry on
-the next startup or hourly timer. Clicking the download button opens GitHub in
-your browser. GlanceLyric does not download or execute updates on your behalf.
+The checker stores its last successful check time, last notified version, and
+any skipped version in `%USERPROFILE%\.glancelyric\update-check.json`.
+From v1.1.1, the watcher checks at Windows login even without Spotify, if you
+enable autostart and automatic checks. The widget also checks after opening.
+Automatic requests run at most once per hour after success, plus a fresh check
+at login; offline failures retry every five minutes while running. A shared
+local lock prevents simultaneous watcher/widget checks and duplicate windows.
+v1.1.0 checks only from the open widget, at most once per day after success.
+Clicking **Download** opens GitHub in your browser. GlanceLyric does not download
+or execute updates on your behalf.
 
 GlanceLyric stores settings, cached lyrics, and diagnostic logs under
-`%USERPROFILE%\.glancelyric`. Optional autostart creates a `GlanceLyric` value
+`%USERPROFILE%\.glancelyric`. The v1.1.1 installer selects autostart by default
+for new installations; you can deselect it or change it in Settings. Autostart creates a `GlanceLyric` value
 in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` for your Windows account.
 
 The application does not require a Spotify account password or Spotify API key.

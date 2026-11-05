@@ -182,4 +182,8 @@ def app_command(*arguments):
 
 
 def start_widget():
-    return subprocess.Popen(app_command(), env={**os.environ, 'PYINSTALLER_RESET_ENVIRONMENT': '1'})
+    return start_app()
+
+
+def start_app(*arguments):
+    return subprocess.Popen(app_command(*arguments), env={**os.environ, 'PYINSTALLER_RESET_ENVIRONMENT': '1'})

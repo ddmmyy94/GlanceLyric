@@ -100,6 +100,26 @@ def main():
     for expected in [0, 1, 1, 1, 1, 2, 3]:
         watcher.poll()
         assert len(launches) == expected
+    failed = Mock(returncode=1)
+    failed.poll.return_value = 1
+    running = Mock()
+    running.poll.return_value = None
+    with patch('glance_watcher.start_app') as start, \
+            patch('glance_watcher.install_autostart') as install, \
+            patch.object(sys, 'argv', ['GlanceLyric.exe', '--install']):
+        glance_watcher.main()
+        install.assert_called_once_with(False)
+        start.assert_called_once_with('--watch')
+    retry = Mock(side_effect=[failed, running])
+    watcher = Watcher(detect=lambda: {10}, launch=retry)
+    watcher.poll()
+    watcher.poll()
+    assert retry.call_count == 2
+    running.poll.return_value = 0
+    running.returncode = 0
+    watcher.poll()
+    watcher.poll()
+    assert retry.call_count == 2  # Normal Exit stays closed for the current Spotify session.
 
     with tempfile.TemporaryDirectory() as directory:
         inbox = queue.Queue()
@@ -118,8 +138,8 @@ def main():
         bad = settings.normalize(dict(font_size='bad', transparency=999, offset=float('nan'),
                                       theme='wrong', text_color='not a color'))
         assert bad['font_size'] == 9 and bad['transparency'] == 100 and bad['offset'] == 0
-        widget = LyricWidget(start_monitor=False, config=settings.DEFAULTS)
-        widget.updater = UpdateChecker(widget.inbox, Path(directory) / 'update-check.json')
+        widget = LyricWidget(start_monitor=False, config=settings.DEFAULTS,
+                             update_state_path=Path(directory) / 'update-check.json')
         widget.show()
         app.processEvents()
         assert len(widget.labels) == 2
@@ -153,6 +173,7 @@ def main():
         # Change taskbar size without restarting; fit both lines and restore the preference.
         for configured_size in (7, 9, 20):
             widget.config['font_size'] = configured_size
+            fitted_fonts = None
             for size in (48, 32, 24, 48):
                 small_bar = QRect(0, 1080 - size, 1920, size)
                 small_tray = QRect(1680, 1080 - size, 240, size)
@@ -167,8 +188,11 @@ def main():
                         assert widget.rect().contains(label.geometry())
                     assert widget.labels[0].geometry().bottom() < widget.labels[1].geometry().top()
                     assert widget.config['font_size'] == configured_size
-                    if configured_size == 9 and size == 48:
-                        assert widget.labels[0].font() == original_fonts[0]
+                    if size == 48:
+                        if fitted_fonts is None:
+                            fitted_fonts = [label.font() for label in widget.labels]
+                        else:
+                            assert [label.font() for label in widget.labels] == fitted_fonts
         widget.config.update(settings.DEFAULTS)
         widget.apply_settings()
         app.processEvents()
@@ -178,7 +202,10 @@ def main():
         assert widget.width() > 260 and widget.geometry().right() == anchor.right()
         assert widget.labels[1].fontMetrics().horizontalAdvance(long_line) <= widget.labels[1].width()
         assert [a.text() for a in widget.menu.actions() if not a.isSeparator()] == [
-            'Settings', 'Show Spotify', 'Check for updates…', 'About GlanceLyric', 'Exit']
+            'Settings', 'Show Spotify', 'Check for updates…', 'Support this Project', 'About GlanceLyric', 'Exit']
+        with patch('glance_widget.QDesktopServices.openUrl', return_value=True) as support:
+            next(a for a in widget.menu.actions() if a.text() == 'Support this Project').trigger()
+            assert support.call_args.args[0].toString() == 'https://sociabuzz.com/ddmmyy94/tribe'
         lyric_geometry = widget.geometry()
         label_geometry = [label.geometry() for label in widget.labels]
         point = QPointF(widget.rect().center())
@@ -284,26 +311,23 @@ def main():
         widget.tick()
         app.processEvents()
         box = widget.update_dialog
-        assert box.isVisible() and box.textFormat() == Qt.TextFormat.PlainText
+        assert box.isVisible() and box.notes.toPlainText() == update['notes']
         assert box.windowModality() == Qt.WindowModality.NonModal
-        assert update['notes'][:800] in box.informativeText() and box.detailedText() == update['notes']
-        details = next(button for button in box.buttons()
-                       if box.buttonRole(button) == QMessageBox.ButtonRole.ActionRole)
-        QTest.mouseClick(details, Qt.MouseButton.LeftButton)
         QTest.qWait(80)
-        assert box.findChild(QTextEdit).isVisible()
         assert box.screen().availableGeometry().contains(box.frameGeometry())
-        QTest.mouseClick(details, Qt.MouseButton.LeftButton)
         assert widget.full_text == before_update and widget.key == playing_key
         assert widget.updater.state['notified_version'] == '9.0.0'
-        with patch('glance_widget.QDesktopServices.openUrl') as open_url:
-            QTest.mouseClick(next(b for b in box.buttons() if b.text() == 'Nanti'), Qt.MouseButton.LeftButton)
+        with patch('glance_update_ui.QDesktopServices.openUrl', return_value=True) as open_url:
+            QTest.mouseClick(box.later, Qt.MouseButton.LeftButton)
             open_url.assert_not_called()
             widget.show_update_result(dict(manual=True, release=update))
             app.processEvents()
-            button = next(b for b in widget.update_dialog.buttons() if b.text() == 'Buka halaman unduhan')
+            button = widget.update_dialog.download
             QTest.mouseClick(button, Qt.MouseButton.LeftButton)
             assert open_url.call_args.args[0].toString() == update['url']
+        widget.show_update_result(dict(manual=True, release=update))
+        QTest.mouseClick(widget.update_dialog.skip, Qt.MouseButton.LeftButton)
+        assert widget.updater.state['skipped_version'] == '9.0.0'
 
         widget.open_settings()
         app.processEvents()
@@ -326,6 +350,22 @@ def main():
         assert widget.config['font_size'] == 11 and widget.config['transparency'] == 25
         assert settings.load_settings()['font_size'] == 11
         assert not settings.load_settings()['check_updates']
+        with patch('glance_watcher.autostart_enabled', return_value=False), \
+                patch('glance_watcher.install_autostart') as register, \
+                patch('glance_win32.start_app') as start:
+            startup_dialog = settings.SettingsDialog(widget.config)
+            startup_dialog.autostart.setChecked(True)
+            startup_dialog.save()
+            register.assert_called_once_with(remove=False)
+            start.assert_called_once_with('--watch')
+        with patch('glance_watcher.autostart_enabled', return_value=True), \
+                patch('glance_watcher.install_autostart') as register, \
+                patch('glance_win32.start_app') as start:
+            startup_dialog = settings.SettingsDialog(widget.config)
+            startup_dialog.autostart.setChecked(False)
+            startup_dialog.save()
+            register.assert_called_once_with(remove=True)
+            start.assert_not_called()
         for theme in ('Dark', 'Light', 'System'):
             widget.config['theme'] = theme
             widget.apply_settings()
